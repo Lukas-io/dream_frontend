@@ -2,6 +2,7 @@ package com.thelineage.service;
 
 import com.thelineage.domain.Payment;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PaymentService {
@@ -9,4 +10,5 @@ public interface PaymentService {
     Payment confirm(UUID paymentId, String processorReference);
     Payment releaseEscrow(UUID paymentId);
     Payment refund(UUID paymentId, String reason);
+    Optional<Payment> findByOrderId(UUID orderId);
 }

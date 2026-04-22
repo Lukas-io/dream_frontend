@@ -190,10 +190,11 @@ The API is served on `http://localhost:8080`.
 
 ## API Overview
 
-Full request/response documentation is available via Swagger / OpenAPI when the service is running locally:
+Full request/response documentation is available when the service is running locally:
 
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI spec: `http://localhost:8080/v3/api-docs`
+- **Scalar API Reference**: `http://localhost:8080/scalar` (primary — modern reference UI)
+- **Swagger UI**: `http://localhost:8080/swagger-ui.html`
+- **OpenAPI spec**: `http://localhost:8080/v3/api-docs`
 
 Public endpoints (no auth) cover catalog browsing and reading comments/reviews. All write operations and user-specific reads require a JWT issued via `POST /auth/login`.
 

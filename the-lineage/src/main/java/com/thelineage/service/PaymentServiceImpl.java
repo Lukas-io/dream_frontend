@@ -88,4 +88,10 @@ public class PaymentServiceImpl implements PaymentService {
         return payments.findById(paymentId)
                 .orElseThrow(() -> new NotFoundException("Payment not found: " + paymentId));
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Optional<Payment> findByOrderId(UUID orderId) {
+        return payments.findByOrderId(orderId);
+    }
 }
