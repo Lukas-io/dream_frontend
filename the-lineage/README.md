@@ -42,7 +42,16 @@ Together these produce something the market hasn't had: a place where **trust is
 
 **Buyers** come to find pairs they can believe in. They can browse anonymously, but anything that costs money — purchasing, saving, commenting, reviewing — requires an account. A buyer's job on the platform is to read the passport, ask questions, and buy with confidence.
 
-**Sellers** are the supply side, but they aren't anonymous. Every seller applies, is reviewed by a curator, and is assigned a tier that reflects their track record and the quality of their submissions. Sellers list shoes, respond to comments, ship orders, and build a public reputation over time.
+**Sellers** are the supply side, but they aren't anonymous. Every seller applies, is reviewed by a curator, and is assigned a **tier** that reflects their track record and the quality of their submissions. The four tiers are:
+
+| Tier | Meaning |
+|---|---|
+| `TIER_1` | Recently approved. Limited listing volume; subject to extra scrutiny. |
+| `TIER_2` | Established sellers in good standing. Default tier for ongoing activity. |
+| `TIER_3` | High-volume, consistently positive review history. Receives reduced authentication latency. |
+| `VERIFIED_HOUSE` | Vetted auction houses, archives, or institutions. Their submissions get fast-tracked authentication and a distinct badge in the catalog. |
+
+Sellers list shoes, respond to comments, ship orders, and build a public reputation over time.
 
 **Curators** are the gatekeepers. They review seller applications, authenticate individual shoe submissions, grade condition, and assign rarity scores. They are the humans behind the guarantee — the reason a buyer can trust what the ledger says.
 
@@ -64,8 +73,7 @@ A buyer finds the listing, reviews the full provenance chain, asks questions in 
 **The escrow window and dispute process.**
 Funds stay in escrow until the buyer confirms receipt (or a configurable window elapses with no dispute). If the buyer raises a dispute — wrong pair, misrepresented condition, damage in transit — the escrow holds and admins investigate. Resolution either releases funds to the seller or refunds the buyer, and the provenance record notes the outcome.
 
-**Drop events.**
-Certain high-demand listings can be published as drops: a scheduled reveal with a shared start time, a purchase queue, and tier-gated early access for repeat buyers. The ledger and curation rules are unchanged — drops just change how the listing becomes visible.
+> *Drops — scheduled reveals with tier-gated early access for high-demand listings — are on the roadmap and not yet implemented.*
 
 ---
 
@@ -131,60 +139,114 @@ The Lineage backend is a layered Spring Boot application, designed for clarity o
 
 **Stack:** Java 21, Spring Boot 3.x, Spring Security, Spring Data JPA, PostgreSQL, JUnit 5, MockMvc, Testcontainers, MapStruct, Lombok.
 
+**Design documents.** Diagrams covering the data model, actor permissions, runtime architecture, and the major flows live under [`docs/design/`](docs/design/README.md). Start there if you want to see the system before reading code.
+
 ---
 
 ## Getting Started
 
-**Prerequisites:**
-- Java 21
-- Maven 3.9+
-- Docker (for running PostgreSQL locally and for Testcontainers)
+### Prerequisites
 
-**Clone and run:**
+| Tool | Minimum version | Notes |
+|---|---|---|
+| Java | 21 | `java -version` should report 21+ |
+| Maven | 3.9+ | Or use the bundled wrapper: `./mvnw` |
+| Docker | any recent | For local PostgreSQL **and** the Testcontainers integration test |
+
+### Quickstart
+
 ```bash
 git clone <repo-url>
 cd the-lineage
 
-# Start PostgreSQL (any method works; docker-compose file below is easiest)
-docker run --name lineage-pg -e POSTGRES_DB=lineage \
-  -e POSTGRES_USER=lineage -e POSTGRES_PASSWORD=lineage \
-  -p 5432:5432 -d postgres:16
+# 1. Copy env template and (optionally) edit
+cp .env.example .env
+# Generate a JWT secret if you didn't already:
+# openssl rand -base64 48
 
-# Run with the local profile
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+# 2. Start PostgreSQL
+docker compose up -d
+
+# 3. Boot the API (loads .env, runs the local profile, seeds dev users)
+LINEAGE_JWT_SECRET=$(grep ^LINEAGE_JWT_SECRET .env | cut -d= -f2-) \
+  ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-**Environment variables:**
+The API is served on `http://localhost:8080`. Open <http://localhost:8080/scalar> for the interactive API reference.
 
-| Variable | Purpose | Default |
+### Dev seed users
+
+When running with the `local` profile, `DevDataSeeder` creates four accounts on first boot. **All passwords are `password123`.** Use them to exercise every role without running SQL by hand.
+
+| Email | Role | Notes |
 |---|---|---|
-| `LINEAGE_DB_URL` | JDBC URL | `jdbc:postgresql://localhost:5432/lineage` |
-| `LINEAGE_DB_USER` | DB user | `lineage` |
-| `LINEAGE_DB_PASSWORD` | DB password | `lineage` |
-| `LINEAGE_JWT_SECRET` | HMAC signing key (32+ bytes) | *(required)* |
-| `LINEAGE_JWT_ACCESS_TTL_MIN` | Access token lifetime | `15` |
-| `LINEAGE_JWT_REFRESH_TTL_DAYS` | Refresh token lifetime | `7` |
+| `admin@lineage.test` | `ADMIN` | Can hit `/admin/**` |
+| `curator@lineage.test` | `CURATOR` | Can hit `/curator/**` |
+| `seller@lineage.test` | `SELLER` | Already approved, `TIER_2` |
+| `buyer@lineage.test` | `BUYER` | Can shop, comment, raise disputes |
 
-The API is served on `http://localhost:8080`.
+The seeder is idempotent: existing accounts are not overwritten.
+
+### Get a JWT and call a protected endpoint
+
+```bash
+# 1. Log in and capture the access token
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"seller@lineage.test","password":"password123"}' \
+  | jq -r .accessToken)
+
+# 2. Use it
+curl -s http://localhost:8080/orders/me \
+  -H "Authorization: Bearer $TOKEN" | jq .
+```
+
+In the Scalar UI, click the lock icon at the top, paste the access token, and every endpoint's "Try it" form will use it automatically.
+
+### Environment variables
+
+**Required to boot (non-test profiles):**
+
+| Variable | Purpose |
+|---|---|
+| `LINEAGE_JWT_SECRET` | HMAC-SHA256 signing key (must be ≥ 32 bytes). Boot fails if unset. |
+
+**Optional / tunable:**
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `LINEAGE_DB_URL` | `jdbc:postgresql://localhost:5432/lineage` | JDBC URL |
+| `LINEAGE_DB_USER` | `lineage` | DB user |
+| `LINEAGE_DB_PASSWORD` | `lineage` | DB password |
+| `LINEAGE_JWT_ACCESS_TTL_MIN` | `15` | Access token lifetime (minutes) |
+| `LINEAGE_JWT_REFRESH_TTL_DAYS` | `7` | Refresh token lifetime (days) |
+
+A canonical reference of every variable lives in [`.env.example`](.env.example).
+
+### Ports
+
+| Port | Service |
+|---|---|
+| `8080` | API + Scalar/Swagger UI |
+| `5432` | PostgreSQL (when started via `docker compose`) |
+
+### Profiles
+
+| Profile | DB | Purpose |
+|---|---|---|
+| `local` | PostgreSQL on `localhost:5432`, schema auto-updated | Day-to-day development. Runs `DevDataSeeder`. |
+| `test` | PostgreSQL via Testcontainers, schema recreated | Used by integration tests. Hard-coded JWT secret so tests don't need env setup. |
 
 ---
 
 ## Running Tests
 
-**Unit tests** (fast, no infrastructure):
-```bash
-./mvnw test
-```
+| Command | What runs | Needs Docker? |
+|---|---|---|
+| `./mvnw test` | Unit tests only (Mockito, no infra) | No |
+| `./mvnw verify` | Unit tests **and** the Testcontainers integration test | Yes — Docker daemon must be running |
 
-**Integration tests** (spins up PostgreSQL via Testcontainers — Docker must be running):
-```bash
-./mvnw verify -Dspring.profiles.active=test
-```
-
-**All tests:**
-```bash
-./mvnw verify
-```
+The integration test (`ListingIntegrationTest`) brings up real PostgreSQL via Testcontainers, exercises the create-listing flow end-to-end through MockMvc, and asserts at the database level. Skip it on machines without Docker by sticking with `./mvnw test`.
 
 ---
 
@@ -192,11 +254,54 @@ The API is served on `http://localhost:8080`.
 
 Full request/response documentation is available when the service is running locally:
 
-- **Scalar API Reference**: `http://localhost:8080/scalar` (primary — modern reference UI)
-- **Swagger UI**: `http://localhost:8080/swagger-ui.html`
-- **OpenAPI spec**: `http://localhost:8080/v3/api-docs`
+- **Scalar API Reference** — <http://localhost:8080/scalar> *(primary; modern reading-first UI)*
+- **Swagger UI** — <http://localhost:8080/swagger-ui.html> *(included for tooling compatibility)*
+- **OpenAPI spec** — <http://localhost:8080/v3/api-docs>
 
-Public endpoints (no auth) cover catalog browsing and reading comments/reviews. All write operations and user-specific reads require a JWT issued via `POST /auth/login`.
+Use Scalar for browsing; use the OpenAPI JSON if you want to generate clients or import into Postman.
+
+### Endpoint cheat sheet
+
+Public endpoints are open to anyone — no JWT required. Everything else needs `Authorization: Bearer <token>` from `POST /auth/login`.
+
+| Endpoint(s) | Required role | Notes |
+|---|---|---|
+| `POST /auth/register`, `POST /auth/login` | — (public) | `register` always creates a `BUYER`. |
+| `GET /listings`, `GET /listings/{id}` | — (public) | Catalog browse + passport view. |
+| `GET /listings/{id}/comments`, `GET /listings/{id}/reviews` | — (public) | |
+| `GET /sellers/{id}`, `GET /sellers/{id}/reviews` | — (public) | |
+| `POST /sellers/applications` | any authenticated user | Become a seller. |
+| `POST /sellers/me/shoes` | `SELLER` (approved) | Submit a shoe for authentication. |
+| `POST /listings`, `DELETE /listings/{id}` | `SELLER` (and owner for delete) | |
+| `POST /listings/{id}/comments`, `POST /comments/{id}/replies`, `POST /comments/{id}/flag` | any authenticated user | |
+| `GET /cart`, `POST /cart/items`, `DELETE /cart/items/{id}` | `BUYER` | |
+| `POST /checkout` | `BUYER` | Reserve → pay → mark sold in one call. |
+| `GET /orders/me`, `GET /orders/{id}`, `POST /orders/{id}/ship`, `POST /orders/{id}/delivered`, `POST /orders/{id}/confirm` | mixed (buyer / seller / admin) | Each endpoint enforces its own ownership rule. |
+| `POST /orders/{id}/reviews` | `BUYER` | Only on a `COMPLETED` order. |
+| `POST /disputes`, `GET /orders/{id}/disputes` | `BUYER` (open) / authenticated (read) | |
+| `POST /curator/applications/{id}/approve`, `…/reject`, `POST /curator/shoes/{id}/authenticate`, `GET /curator/applications/pending` | `CURATOR` or `ADMIN` | |
+| `POST /admin/disputes/{id}/resolve`, `POST /admin/payments/{id}/release-escrow`, `POST /admin/payments/{id}/refund`, `PUT /admin/users/{id}/role` | `ADMIN` | |
+
+The `SecurityConfig` is the source of truth for these rules.
+
+### Payments are mocked
+
+There is no real payment processor. `PaymentService.confirm()` simulates capture by setting `paymentStatus = CAPTURED, escrowStatus = HELD`. `releaseEscrow` and `refund` mutate the same record. This is deliberate so you can exercise the full purchase + dispute flow locally without external accounts.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `Failed to bind ... PostgreSQL` on boot | Postgres not running, or wrong host/port | `docker compose up -d`, then re-run; or set `LINEAGE_DB_URL` |
+| `Could not resolve placeholder 'LINEAGE_JWT_SECRET'` | Env var not set | `cp .env.example .env` and export it, or pass it inline |
+| `WeakKeyException: signing key size is N bits ... must be ≥ 256 bits` | JWT secret is too short | Use at least 32 bytes; `openssl rand -base64 48` produces a safe value |
+| Port 8080 already in use | Another app on 8080 | Stop the other app, or set `server.port` (e.g. `--server.port=8090`) |
+| Port 5432 already in use | Local Postgres already running | Stop it, or change the host port mapping in `docker-compose.yml` |
+| `class file ... has been compiled by a more recent version of Java` | Wrong JDK active | `java -version` must show 21+; switch via `jenv`/`sdk use java 21` |
+| Integration test hangs at `Waiting for ...` | Docker daemon not running | Start Docker; integration test depends on Testcontainers |
+| 401 in Scalar after login | Token not pasted into the Authorize dialog | Click the lock icon in Scalar, paste the `accessToken` from the login response |
 
 ---
 
