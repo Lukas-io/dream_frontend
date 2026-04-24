@@ -11,6 +11,10 @@ import com.thelineage.security.LineageUserPrincipal;
 import com.thelineage.service.SellerApplicationService;
 import com.thelineage.service.ShoeService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,6 +43,12 @@ public class CuratorController {
 
     @GetMapping("/applications/pending")
     @Operation(summary = "List pending seller applications")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Pending applications."),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Caller is not a CURATOR or ADMIN.", content = @Content)
+    })
     public List<ApplicationDto> pending() {
         return applications.listPending().stream()
                 .map(a -> new ApplicationDto(a.getId(), a.getApplicant().getId(),
@@ -47,7 +57,18 @@ public class CuratorController {
     }
 
     @PostMapping("/applications/{id}/approve")
-    @Operation(summary = "Approve a seller application and assign a tier")
+    @Operation(summary = "Approve a seller application and assign a tier; promotes applicant to SELLER")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Application approved; applicant promoted."),
+            @ApiResponse(responseCode = "400", description = "Validation failed.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Caller is not a CURATOR or ADMIN.", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Application or curator user not found.",
+                    content = @Content),
+            @ApiResponse(responseCode = "409", description = "Application is not in PENDING state.",
+                    content = @Content)
+    })
     public ApplicationDto approve(@AuthenticationPrincipal LineageUserPrincipal principal,
                                   @PathVariable UUID id,
                                   @Valid @RequestBody ApproveApplicationRequest body) {
@@ -58,6 +79,17 @@ public class CuratorController {
 
     @PostMapping("/applications/{id}/reject")
     @Operation(summary = "Reject a seller application")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Application rejected."),
+            @ApiResponse(responseCode = "400", description = "Validation failed.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Caller is not a CURATOR or ADMIN.", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Application or curator user not found.",
+                    content = @Content),
+            @ApiResponse(responseCode = "409", description = "Application is not in PENDING state.",
+                    content = @Content)
+    })
     public ApplicationDto reject(@AuthenticationPrincipal LineageUserPrincipal principal,
                                  @PathVariable UUID id,
                                  @Valid @RequestBody RejectApplicationRequest body) {
@@ -67,7 +99,19 @@ public class CuratorController {
     }
 
     @PostMapping("/shoes/{shoeId}/authenticate")
-    @Operation(summary = "Authenticate a submitted shoe — grade condition and set rarity score")
+    @Operation(
+            summary = "Authenticate a submitted shoe — grade condition and set rarity score",
+            description = "Appends an AUTHENTICATED provenance record. Once authenticated, the seller may list the shoe."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Shoe authenticated."),
+            @ApiResponse(responseCode = "400", description = "Validation failed.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Caller is not a CURATOR or ADMIN.", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Shoe or curator user not found.", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Shoe is already authenticated.", content = @Content)
+    })
     public ShoeDto authenticate(@AuthenticationPrincipal LineageUserPrincipal principal,
                                 @PathVariable UUID shoeId,
                                 @Valid @RequestBody AuthenticateShoeRequest body) {

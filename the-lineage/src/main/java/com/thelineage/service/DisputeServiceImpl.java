@@ -21,11 +21,14 @@ public class DisputeServiceImpl implements DisputeService {
     private final DisputeRepository disputes;
     private final OrderRepository orders;
     private final UserRepository users;
+    private final ProvenanceService provenance;
 
-    public DisputeServiceImpl(DisputeRepository disputes, OrderRepository orders, UserRepository users) {
+    public DisputeServiceImpl(DisputeRepository disputes, OrderRepository orders, UserRepository users,
+                              ProvenanceService provenance) {
         this.disputes = disputes;
         this.orders = orders;
         this.users = users;
+        this.provenance = provenance;
     }
 
     @Override
@@ -46,12 +49,16 @@ public class DisputeServiceImpl implements DisputeService {
         }
         order.setStatus(OrderStatus.DISPUTED);
         orders.save(order);
-        return disputes.save(Dispute.builder()
+        Dispute saved = disputes.save(Dispute.builder()
                 .order(order)
                 .raisedBy(raisedBy)
                 .status(DisputeStatus.OPEN)
                 .reason(reason)
                 .build());
+        provenance.append(order.getListing().getShoe().getId(), raisedByUserId,
+                ProvenanceEventType.DISPUTED,
+                "{\"orderId\":\"" + orderId + "\",\"disputeId\":\"" + saved.getId() + "\"}");
+        return saved;
     }
 
     @Override
@@ -78,7 +85,11 @@ public class DisputeServiceImpl implements DisputeService {
         order.setStatus(outcome == DisputeStatus.RESOLVED_BUYER ? OrderStatus.REFUNDED : OrderStatus.COMPLETED);
         if (outcome == DisputeStatus.RESOLVED_SELLER) order.setCompletedAt(Instant.now());
         orders.save(order);
-        return disputes.save(dispute);
+        Dispute saved = disputes.save(dispute);
+        provenance.append(order.getListing().getShoe().getId(), adminUserId,
+                ProvenanceEventType.RESOLVED,
+                "{\"disputeId\":\"" + disputeId + "\",\"outcome\":\"" + outcome + "\"}");
+        return saved;
     }
 
     @Override

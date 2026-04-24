@@ -6,6 +6,7 @@ import com.thelineage.exception.ConflictException;
 import com.thelineage.exception.NotFoundException;
 import com.thelineage.repository.CartRepository;
 import com.thelineage.repository.OrderRepository;
+import com.thelineage.repository.ShippingRecordRepository;
 import com.thelineage.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,6 +31,8 @@ class OrderServiceTest {
     @Mock private OrderRepository orders;
     @Mock private CartRepository carts;
     @Mock private UserRepository users;
+    @Mock private ShippingRecordRepository shipping;
+    @Mock private ProvenanceService provenance;
     @InjectMocks private OrderServiceImpl service;
 
     @Test
@@ -71,29 +75,54 @@ class OrderServiceTest {
     }
 
     @Test
-    void markShipped_fromPaid_succeeds() {
+    void markShipped_fromPaid_succeedsAndAppendsShippedProvenance() {
         UUID id = UUID.randomUUID();
-        OrderEntity order = OrderEntity.builder().id(id).status(OrderStatus.PAID).build();
+        UUID shoeId = UUID.randomUUID();
+        UUID sellerUserId = UUID.randomUUID();
+        Shoe shoe = Shoe.builder().id(shoeId).build();
+        Listing listing = Listing.builder().id(UUID.randomUUID()).shoe(shoe).build();
+        User sellerUser = User.builder().id(sellerUserId).build();
+        SellerProfile sellerProfile = SellerProfile.builder().id(UUID.randomUUID()).user(sellerUser).build();
+        OrderEntity order = OrderEntity.builder().id(id).status(OrderStatus.PAID)
+                .listing(listing).seller(sellerProfile).build();
         when(orders.findById(id)).thenReturn(Optional.of(order));
         when(orders.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        assertThat(service.markShipped(id).getStatus()).isEqualTo(OrderStatus.SHIPPED);
+        when(shipping.findByOrderId(id)).thenReturn(Optional.empty());
+        when(shipping.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        OrderEntity result = service.markShipped(id, "UPS", "1Z999");
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.SHIPPED);
+        verify(provenance).append(eq(shoeId), eq(sellerUserId), eq(ProvenanceEventType.SHIPPED), any());
     }
 
     @Test
     void markShipped_fromCreated_throwsConflict() {
         UUID id = UUID.randomUUID();
         when(orders.findById(id)).thenReturn(Optional.of(OrderEntity.builder().id(id).status(OrderStatus.CREATED).build()));
-        assertThatThrownBy(() -> service.markShipped(id)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.markShipped(id, "UPS", "1Z"))
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test
-    void complete_fromDelivered_succeeds() {
+    void complete_fromDelivered_succeedsAndAppendsReceivedProvenance() {
         UUID id = UUID.randomUUID();
-        OrderEntity order = OrderEntity.builder().id(id).status(OrderStatus.DELIVERED).build();
+        UUID shoeId = UUID.randomUUID();
+        UUID buyerId = UUID.randomUUID();
+        Shoe shoe = Shoe.builder().id(shoeId).build();
+        Listing listing = Listing.builder().id(UUID.randomUUID()).shoe(shoe).build();
+        User buyer = User.builder().id(buyerId).build();
+        OrderEntity order = OrderEntity.builder().id(id).status(OrderStatus.DELIVERED)
+                .listing(listing).buyer(buyer).build();
         when(orders.findById(id)).thenReturn(Optional.of(order));
         when(orders.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
         OrderEntity result = service.complete(id);
+
         assertThat(result.getStatus()).isEqualTo(OrderStatus.COMPLETED);
         assertThat(result.getCompletedAt()).isNotNull();
+        verify(provenance).append(eq(shoeId), eq(buyerId), eq(ProvenanceEventType.RECEIVED), any());
     }
+
+    private static <T> T eq(T t) { return org.mockito.ArgumentMatchers.eq(t); }
 }

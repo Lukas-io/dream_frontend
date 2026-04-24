@@ -2,6 +2,7 @@ package com.thelineage.controller;
 
 import com.thelineage.domain.User;
 import com.thelineage.dto.auth.LoginRequest;
+import com.thelineage.dto.auth.RefreshRequest;
 import com.thelineage.dto.auth.RegisterRequest;
 import com.thelineage.dto.auth.TokenPair;
 import com.thelineage.service.UserService;
@@ -66,5 +67,21 @@ public class AuthController {
     })
     public TokenPair login(@Valid @RequestBody LoginRequest request) {
         return userService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    @Operation(
+            summary = "Exchange a refresh token for a new access + refresh token pair",
+            description = "Use when the access token has expired (default lifetime 15 minutes). " +
+                    "The refresh token itself is also rotated."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "New token pair issued."),
+            @ApiResponse(responseCode = "400", description = "Validation failed.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Refresh token is invalid, expired, or the account is inactive.",
+                    content = @Content)
+    })
+    public TokenPair refresh(@Valid @RequestBody RefreshRequest request) {
+        return userService.refresh(request.refreshToken());
     }
 }

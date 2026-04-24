@@ -9,6 +9,10 @@ import com.thelineage.mapper.DomainMappers;
 import com.thelineage.security.LineageUserPrincipal;
 import com.thelineage.service.CartService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +35,13 @@ public class CartController {
     }
 
     @GetMapping
-    @Operation(summary = "Get the authenticated buyer's active cart")
+    @Operation(summary = "Get the authenticated buyer's active cart (creates one if absent)")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Cart returned."),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Caller is not a BUYER.", content = @Content)
+    })
     public CartDto get(@AuthenticationPrincipal LineageUserPrincipal principal) {
         Cart cart = cartService.getActiveCart(principal.id());
         return mappers.toDto(cart);
@@ -39,6 +49,15 @@ public class CartController {
 
     @PostMapping("/items")
     @Operation(summary = "Add a listing to the buyer's cart (creates a time-bound reservation)")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Item added; reservation created."),
+            @ApiResponse(responseCode = "400", description = "Validation failed.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Caller is not a BUYER.", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Listing not found.", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Listing is not AVAILABLE.", content = @Content)
+    })
     public CartItemDto add(@AuthenticationPrincipal LineageUserPrincipal principal,
                            @Valid @RequestBody AddItemRequest body) {
         CartItem item = cartService.addItem(principal.id(), body.listingId());
@@ -47,6 +66,13 @@ public class CartController {
 
     @DeleteMapping("/items/{itemId}")
     @Operation(summary = "Remove an item from the buyer's cart")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Item removed."),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "Caller is not the cart owner.", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Cart item not found.", content = @Content)
+    })
     public ResponseEntity<Void> remove(@AuthenticationPrincipal LineageUserPrincipal principal,
                                        @PathVariable UUID itemId) {
         cartService.removeItem(principal.id(), itemId);

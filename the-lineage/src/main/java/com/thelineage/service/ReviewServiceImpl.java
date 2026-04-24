@@ -40,6 +40,9 @@ public class ReviewServiceImpl implements ReviewService {
         if (order.getStatus() != OrderStatus.COMPLETED) {
             throw new ConflictException("Cannot review incomplete order");
         }
+        if (reviews.existsByOrderId(orderId)) {
+            throw new ConflictException("Review already submitted for this order");
+        }
         return reviews.save(Review.builder()
                 .order(order)
                 .author(author)

@@ -75,6 +75,21 @@ class ReviewServiceTest {
     }
 
     @Test
+    void submit_whenReviewAlreadyExists_throwsConflict() {
+        UUID orderId = UUID.randomUUID();
+        UUID buyerId = UUID.randomUUID();
+        User buyer = User.builder().id(buyerId).build();
+        OrderEntity order = OrderEntity.builder().id(orderId).buyer(buyer)
+                .seller(SellerProfile.builder().id(UUID.randomUUID()).build())
+                .status(OrderStatus.COMPLETED).build();
+        when(orders.findById(orderId)).thenReturn(Optional.of(order));
+        when(users.findById(buyerId)).thenReturn(Optional.of(buyer));
+        when(reviews.existsByOrderId(orderId)).thenReturn(true);
+        assertThatThrownBy(() -> service.submit(orderId, buyerId, new ReviewScores(5,5,5), "dup"))
+                .isInstanceOf(ConflictException.class);
+    }
+
+    @Test
     void findByListing_delegates() {
         UUID listingId = UUID.randomUUID();
         when(reviews.findAllByOrder_Listing_Id(listingId)).thenReturn(List.of(new Review()));

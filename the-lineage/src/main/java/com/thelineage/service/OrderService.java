@@ -9,7 +9,7 @@ public interface OrderService {
     OrderEntity createFromCart(UUID buyerUserId);
     OrderEntity findById(UUID orderId);
     List<OrderEntity> findByBuyer(UUID buyerUserId);
-    OrderEntity markShipped(UUID orderId);
+    OrderEntity markShipped(UUID orderId, String carrier, String trackingNumber);
     OrderEntity markDelivered(UUID orderId);
     OrderEntity complete(UUID orderId);
 }

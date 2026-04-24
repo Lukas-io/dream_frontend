@@ -11,6 +11,7 @@ import java.util.UUID;
 public interface UserService {
     User register(RegisterRequest request);
     TokenPair login(LoginRequest request);
+    TokenPair refresh(String refreshToken);
     User getProfile(UUID userId);
     User updateRole(UUID userId, UserRole newRole);
 }

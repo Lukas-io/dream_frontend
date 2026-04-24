@@ -81,14 +81,11 @@ Funds stay in escrow until the buyer confirms receipt (or a configurable window 
 
 **Catalog & Discovery**
 - Public browsing with filters by era, brand, colorway, condition, rarity
-- Full-text search
 - Per-listing passport view with complete provenance chain
-- Saved / wishlist items for signed-in buyers
 
 **Seller Lifecycle**
 - Application submission and review
-- Tier assignment and re-tiering
-- Seller dashboards: inventory, orders, payouts, ratings
+- Tier assignment by curators
 - Public seller profiles
 
 **Authentication & Provenance**
@@ -110,10 +107,12 @@ Funds stay in escrow until the buyer confirms receipt (or a configurable window 
 - Dispute submission and resolution
 
 **Platform Operations**
-- Admin dashboards for disputes, payouts, and analytics
 - Curator queue for applications and authentications
-- Audit log for every state-changing action
-- Mocked notifications and shipping
+- Admin endpoints for dispute resolution, escrow release, refunds, and role overrides
+- In-app notifications (listed via `GET /notifications/me` — delivery mocked)
+- Mocked shipping workflow (seller-driven)
+
+> **Roadmap, not shipped yet.** Wishlist / saved listings, seller analytics dashboards, full-text search, drop events, and a dedicated refresh-token rotation database are currently out of scope.
 
 ---
 
@@ -262,27 +261,30 @@ Use Scalar for browsing; use the OpenAPI JSON if you want to generate clients or
 
 ### Endpoint cheat sheet
 
-Public endpoints are open to anyone — no JWT required. Everything else needs `Authorization: Bearer <token>` from `POST /auth/login`.
+"Public" = callable with no JWT. "Any auth" = any valid bearer token. Role-named rows require that role on the token; role-gated endpoints return **`403`** when a token is present but the role is wrong (and **`401`** when there's no token or it's invalid). Ownership-based rules (e.g. "seller must be the owner") are enforced inside the controller and also return `403`.
 
-| Endpoint(s) | Required role | Notes |
+| Endpoint(s) | Access | Notes |
 |---|---|---|
-| `POST /auth/register`, `POST /auth/login` | — (public) | `register` always creates a `BUYER`. |
-| `GET /listings`, `GET /listings/{id}` | — (public) | Catalog browse + passport view. |
-| `GET /listings/{id}/comments`, `GET /listings/{id}/reviews` | — (public) | |
-| `GET /sellers/{id}`, `GET /sellers/{id}/reviews` | — (public) | |
-| `POST /sellers/applications` | any authenticated user | Become a seller. |
+| `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` | public | `register` always creates a `BUYER`. `refresh` rotates both tokens. |
+| `GET /listings`, `GET /listings/{id}` | public | Catalog browse + passport view. |
+| `GET /listings/{id}/comments`, `GET /listings/{id}/reviews` | public | |
+| `GET /sellers/{id}`, `GET /sellers/{id}/reviews` | public | Seller public profile + their review history. |
+| `GET /users/me`, `GET /notifications/me` | any auth | The caller's own profile / notification feed. |
+| `POST /sellers/applications`, `GET /sellers/applications/pending` | any auth (submit) / curator queue (read) | Become a seller / review queue. |
 | `POST /sellers/me/shoes` | `SELLER` (approved) | Submit a shoe for authentication. |
 | `POST /listings`, `DELETE /listings/{id}` | `SELLER` (and owner for delete) | |
-| `POST /listings/{id}/comments`, `POST /comments/{id}/replies`, `POST /comments/{id}/flag` | any authenticated user | |
+| `POST /listings/{id}/comments`, `POST /comments/{id}/replies`, `POST /comments/{id}/flag` | any auth | |
 | `GET /cart`, `POST /cart/items`, `DELETE /cart/items/{id}` | `BUYER` | |
 | `POST /checkout` | `BUYER` | Reserve → pay → mark sold in one call. |
-| `GET /orders/me`, `GET /orders/{id}`, `POST /orders/{id}/ship`, `POST /orders/{id}/delivered`, `POST /orders/{id}/confirm` | mixed (buyer / seller / admin) | Each endpoint enforces its own ownership rule. |
-| `POST /orders/{id}/reviews` | `BUYER` | Only on a `COMPLETED` order. |
-| `POST /disputes`, `GET /orders/{id}/disputes` | `BUYER` (open) / authenticated (read) | |
+| `GET /orders/me`, `GET /orders/{id}`, `POST /orders/{id}/confirm` | any auth (ownership-gated in controller) | `confirm` is buyer-only. |
+| `POST /orders/{id}/ship`, `POST /orders/{id}/delivered` | any auth (seller / admin) | `ship` takes `{carrier, trackingNumber}`. |
+| `POST /orders/{id}/reviews` | `BUYER` (buyer-of-order only) | Only on a `COMPLETED` order; one review per order. |
+| `POST /disputes`, `GET /orders/{id}/disputes` | `BUYER` (open) / any auth (read) | |
 | `POST /curator/applications/{id}/approve`, `…/reject`, `POST /curator/shoes/{id}/authenticate`, `GET /curator/applications/pending` | `CURATOR` or `ADMIN` | |
-| `POST /admin/disputes/{id}/resolve`, `POST /admin/payments/{id}/release-escrow`, `POST /admin/payments/{id}/refund`, `PUT /admin/users/{id}/role` | `ADMIN` | |
+| `POST /admin/disputes/{id}/resolve`, `POST /admin/payments/{id}/release-escrow`, `POST /admin/payments/{id}/refund`, `PUT /admin/users/{id}/role` | `ADMIN` | `resolve` side-effects the payment: refund for `RESOLVED_BUYER`, release escrow for `RESOLVED_SELLER`. |
+| `GET /v3/api-docs`, `GET /scalar`, `GET /swagger-ui.html` | public | Docs. |
 
-The `SecurityConfig` is the source of truth for these rules.
+The `SecurityConfig` is the source of truth for role gating; per-endpoint `@ApiResponse` annotations document every documented failure code in Scalar.
 
 ### Payments are mocked
 

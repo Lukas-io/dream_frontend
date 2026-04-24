@@ -9,6 +9,8 @@ import com.thelineage.exception.ConflictException;
 import com.thelineage.exception.NotFoundException;
 import com.thelineage.repository.UserRepository;
 import com.thelineage.security.JwtService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -52,6 +54,27 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
         if (!user.isActive() || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new BadCredentialsException("Invalid credentials");
+        }
+        return new TokenPair(jwt.issueAccess(user), jwt.issueRefresh(user));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TokenPair refresh(String refreshToken) {
+        Claims claims;
+        try {
+            claims = jwt.parse(refreshToken);
+        } catch (JwtException | IllegalArgumentException ex) {
+            throw new BadCredentialsException("Invalid refresh token");
+        }
+        if (!"refresh".equals(claims.get("type"))) {
+            throw new BadCredentialsException("Not a refresh token");
+        }
+        UUID userId = UUID.fromString(claims.getSubject());
+        User user = users.findById(userId)
+                .orElseThrow(() -> new BadCredentialsException("User no longer exists"));
+        if (!user.isActive()) {
+            throw new BadCredentialsException("Account is inactive");
         }
         return new TokenPair(jwt.issueAccess(user), jwt.issueRefresh(user));
     }
