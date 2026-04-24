@@ -3,6 +3,10 @@ spring:
     name: the-lineage
   profiles:
     default: local
+  jpa:
+    # Fail on any session extending past the controller boundary. Forces each
+    # service method to load everything it needs inside its own transaction.
+    open-in-view: false
 
 server:
   port: 8080

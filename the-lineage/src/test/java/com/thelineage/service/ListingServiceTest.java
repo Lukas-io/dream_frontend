@@ -183,7 +183,7 @@ class ListingServiceTest {
     void search_delegatesToRepoFilteredByAvailable() {
         Page<Listing> page = new PageImpl<>(List.of());
         when(listings.findAllByState(eq(ListingState.AVAILABLE), any())).thenReturn(page);
-        Page<Listing> result = service.search(new ListingFilter(null, null, null, null, null, null, 0, 20));
+        Page<Listing> result = service.search(new ListingFilter(0, 20));
         assertThat(result).isSameAs(page);
     }
 

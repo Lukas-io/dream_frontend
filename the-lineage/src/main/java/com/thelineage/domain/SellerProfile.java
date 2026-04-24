@@ -19,7 +19,9 @@ public class SellerProfile {
     @GeneratedValue
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    // EAGER: SellerProfileController reads user.displayName and OrderController's
+    // ownership check reads seller.user.id after the service transaction closes.
+    @OneToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "user_id", unique = true, nullable = false)
     private User user;
 

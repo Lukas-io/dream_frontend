@@ -74,7 +74,7 @@ public class DisputeServiceImpl implements DisputeService {
         if (outcome != DisputeStatus.RESOLVED_BUYER && outcome != DisputeStatus.RESOLVED_SELLER) {
             throw new BadRequestException("Outcome must be RESOLVED_BUYER or RESOLVED_SELLER");
         }
-        if (dispute.getStatus() != DisputeStatus.OPEN && dispute.getStatus() != DisputeStatus.UNDER_REVIEW) {
+        if (dispute.getStatus() != DisputeStatus.OPEN) {
             throw new ConflictException("Dispute already resolved");
         }
         dispute.setStatus(outcome);

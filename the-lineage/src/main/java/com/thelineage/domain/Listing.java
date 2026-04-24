@@ -20,7 +20,9 @@ public class Listing {
     @GeneratedValue
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    // EAGER: ListingMapper renders shoe.passportId / brand / model / colorway /
+    // eraYear into ListingDto after the service transaction closes (OSIV is off).
+    @OneToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "shoe_id", unique = true, nullable = false)
     private Shoe shoe;
 

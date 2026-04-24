@@ -23,7 +23,9 @@ public class CartItem {
     @JoinColumn(name = "cart_id", nullable = false)
     private Cart cart;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    // EAGER: CartItemDto reads listing.price and listing.currency after the
+    // service transaction closes (OSIV is off).
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "listing_id", nullable = false)
     private Listing listing;
 

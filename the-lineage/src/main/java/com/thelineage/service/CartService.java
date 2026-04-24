@@ -9,6 +9,5 @@ public interface CartService {
     Cart getActiveCart(UUID userId);
     CartItem addItem(UUID userId, UUID listingId);
     void removeItem(UUID userId, UUID cartItemId);
-    CartItem reserveListing(UUID userId, UUID listingId);
     int releaseExpired();
 }

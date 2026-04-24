@@ -1,6 +1,5 @@
 package com.thelineage.controller;
 
-import com.thelineage.domain.ConditionGrade;
 import com.thelineage.domain.Listing;
 import com.thelineage.dto.PageResponse;
 import com.thelineage.dto.listing.*;
@@ -42,23 +41,16 @@ public class ListingController {
 
     @GetMapping
     @Operation(
-            summary = "Search the public catalog of available listings",
-            description = "Returns a paginated set of listings currently in the AVAILABLE state."
+            summary = "Browse the public catalog of available listings",
+            description = "Returns a paginated set of listings currently in the AVAILABLE state, newest first."
     )
     @SecurityRequirements
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Listings page returned.")})
     public PageResponse<ListingDto> search(
-            @RequestParam(required = false) String brand,
-            @RequestParam(required = false) String colorway,
-            @RequestParam(required = false) Integer eraFrom,
-            @RequestParam(required = false) Integer eraTo,
-            @RequestParam(required = false) ConditionGrade condition,
-            @RequestParam(required = false) Integer minRarity,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        ListingFilter filter = new ListingFilter(brand, colorway, eraFrom, eraTo, condition, minRarity, page, size);
-        Page<Listing> result = listings.search(filter);
+        Page<Listing> result = listings.search(new ListingFilter(page, size));
         return PageResponse.from(result, mapper::toDto);
     }
 

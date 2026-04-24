@@ -80,7 +80,7 @@ Funds stay in escrow until the buyer confirms receipt (or a configurable window 
 ## Feature Overview
 
 **Catalog & Discovery**
-- Public browsing with filters by era, brand, colorway, condition, rarity
+- Public paginated catalog of AVAILABLE listings (`GET /listings`)
 - Per-listing passport view with complete provenance chain
 
 **Seller Lifecycle**
@@ -112,7 +112,7 @@ Funds stay in escrow until the buyer confirms receipt (or a configurable window 
 - In-app notifications (listed via `GET /notifications/me` — delivery mocked)
 - Mocked shipping workflow (seller-driven)
 
-> **Roadmap, not shipped yet.** Wishlist / saved listings, seller analytics dashboards, full-text search, drop events, and a dedicated refresh-token rotation database are currently out of scope.
+> **Roadmap, not shipped yet.** Catalog filtering by era / brand / colorway / condition / rarity, wishlist / saved listings, seller analytics dashboards, full-text search, drop events, and a dedicated refresh-token rotation database are currently out of scope.
 
 ---
 
@@ -122,7 +122,7 @@ The Lineage backend is a layered Spring Boot application, designed for clarity o
 
 **Layers:**
 - **Domain** — JPA entities and enums. No business logic.
-- **Repository** — Spring Data JPA interfaces. Custom queries for search and filtering.
+- **Repository** — Spring Data JPA interfaces. Custom query methods per aggregate.
 - **Service** — All business logic. Services depend on repositories, never on controllers.
 - **Controller** — REST endpoints. DTO in, DTO out. No entity leaves this layer.
 - **Security** — JWT filter chain, role- and ownership-based authorization.

@@ -79,27 +79,6 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
-    public CartItem reserveListing(UUID userId, UUID listingId) {
-        Cart cart = getActiveCart(userId);
-        Listing listing = listings.findById(listingId)
-                .orElseThrow(() -> new NotFoundException("Listing not found: " + listingId));
-        if (listing.getState() != ListingState.AVAILABLE) {
-            throw new ConflictException("Listing not available");
-        }
-        listing.setState(ListingState.RESERVED);
-        listing.setStateChangedAt(Instant.now());
-        listings.save(listing);
-        Instant now = Instant.now();
-        return items.save(CartItem.builder()
-                .cart(cart)
-                .listing(listing)
-                .reservedAt(now)
-                .expiresAt(now.plus(reservationTtl))
-                .build());
-    }
-
-    @Override
-    @Transactional
     public int releaseExpired() {
         List<CartItem> expired = items.findAllByExpiresAtBefore(Instant.now());
         for (CartItem item : expired) {

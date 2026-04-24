@@ -76,22 +76,6 @@ class CartServiceTest {
     }
 
     @Test
-    void reserveListing_whenAvailable_marksReservedAndCreatesItem() {
-        UUID userId = UUID.randomUUID();
-        UUID listingId = UUID.randomUUID();
-        User u = User.builder().id(userId).build();
-        Cart cart = Cart.builder().owner(u).build();
-        when(carts.findByOwnerId(userId)).thenReturn(Optional.of(cart));
-        Listing listing = Listing.builder().id(listingId).state(ListingState.AVAILABLE).build();
-        when(listings.findById(listingId)).thenReturn(Optional.of(listing));
-        when(listings.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(items.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        CartItem item = service.reserveListing(userId, listingId);
-        assertThat(listing.getState()).isEqualTo(ListingState.RESERVED);
-        assertThat(item.getListing()).isSameAs(listing);
-    }
-
-    @Test
     void releaseExpired_flipsReservedListingsBackToAvailableAndDeletesItems() {
         Listing reserved = Listing.builder().state(ListingState.RESERVED).build();
         CartItem expired = CartItem.builder().id(UUID.randomUUID())

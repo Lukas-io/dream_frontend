@@ -25,7 +25,9 @@ public class Cart {
     @JoinColumn(name = "user_id", unique = true, nullable = false)
     private User owner;
 
-    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
+    // EAGER: DomainMappers renders items[] directly in the cart response DTO
+    // after the service transaction closes (OSIV is off).
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     private List<CartItem> items = new ArrayList<>();
 

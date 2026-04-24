@@ -28,7 +28,10 @@ public class OrderEntity {
     @JoinColumn(name = "buyer_user_id", nullable = false)
     private User buyer;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    // EAGER: controllers and mappers dereference seller (and seller.user) after the
+    // service transaction closes (OSIV is off). Loading it with the parent avoids
+    // LazyInitializationException.
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "seller_profile_id", nullable = false)
     private SellerProfile seller;
 
