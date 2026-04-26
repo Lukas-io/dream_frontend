@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Lineage — API Reference</title>
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        #preamble {
+            padding: 24px 32px;
+            background: linear-gradient(135deg, #1a0033 0%, #2d0052 100%);
+            color: #f5f0ff;
+            border-bottom: 1px solid #3d1a66;
+        }
+        #preamble h1 { margin: 0 0 12px 0; font-size: 1.4rem; }
+        #preamble ol { margin: 12px 0 0 1.2rem; padding: 0; line-height: 1.7; }
+        #preamble code {
+            background: rgba(255,255,255,0.08);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.9rem;
+        }
+        #preamble .meta { font-size: 0.85rem; opacity: 0.75; margin-top: 12px; }
+    </style>
+</head>
+<body>
+    <section id="preamble">
+        <h1>How to authorize</h1>
+        <ol>
+            <li>Call <code>POST /auth/login</code> with email + password (use the seeded dev users — see the README).</li>
+            <li>Copy the <code>accessToken</code> from the response.</li>
+            <li>Click the lock icon in the top-right of this page, choose <strong>bearerAuth</strong>, paste the token, then use <em>Try it</em> on any protected endpoint.</li>
+        </ol>
+        <p class="meta">
+            Token lifetime is short (15 min by default); refresh by calling <code>/auth/login</code> again.
+            If <em>Try it</em> fails silently, your browser may be blocking requests to <code>localhost:8080</code> — try the <code>curl</code> examples in the README instead.
+        </p>
+    </section>
+    <script
+        id="api-reference"
+        data-url="/v3/api-docs"
+        data-configuration='{"theme":"purple","layout":"modern","defaultOpenAllTags":false,"hideDownloadButton":false}'>
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>
