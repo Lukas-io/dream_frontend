@@ -127,7 +127,7 @@ The Lineage backend is a layered Spring Boot application, designed for clarity o
 - **Controller** — REST endpoints. DTO in, DTO out. No entity leaves this layer.
 - **Security** — JWT filter chain, role- and ownership-based authorization.
 - **Exception** — Global `@ControllerAdvice` with structured error responses.
-- **Mapper** — MapStruct mappers between entities and DTOs.
+- **Mapper** — Hand-written entity → DTO mappers (`DomainMappers`, `ListingMapper`).
 
 **Key design decisions:**
 - **Test-first.** Every service is specified by its unit tests before implementation begins. An integration test against a real PostgreSQL instance (via Testcontainers) validates the full stack for the listing creation flow.
@@ -136,7 +136,7 @@ The Lineage backend is a layered Spring Boot application, designed for clarity o
 - **Escrow separate from payout.** `Payment` tracks two independent states — whether funds have cleared into escrow, and whether they have been released to the seller. One never implies the other.
 - **Role and ownership both enforced.** Every protected endpoint checks both the caller's role and, where relevant, whether they own the resource being modified.
 
-**Stack:** Java 21, Spring Boot 3.x, Spring Security, Spring Data JPA, PostgreSQL, JUnit 5, MockMvc, Testcontainers, MapStruct, Lombok.
+**Stack:** Java 21, Spring Boot 3.3, Spring Security, Spring Data JPA, PostgreSQL, JUnit 5, MockMvc, Testcontainers, jjwt, springdoc-openapi (Scalar UI), Lombok.
 
 **Design documents.** Diagrams covering the data model, actor permissions, runtime architecture, and the major flows live under [`docs/design/`](docs/design/README.md). Start there if you want to see the system before reading code.
 
